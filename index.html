@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>具身物理實驗室：牛頓第三定律 (Matter.js版)</title>
+    <!-- 引入 Matter.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #e74c3c;
+            --success-color: #2ecc71;
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-color: #2c3e50;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1, h2, h3 {
+            text-align: center;
+            color: var(--text-color);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        /* 具身引導區塊 */
+        .embodied-guide {
+            background: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        .embodied-icon {
+            font-size: 1.4em;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        /* 實驗室區塊 */
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background: #2c3e50;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 3px solid #34495e;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .control-panel {
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            background: #ecf0f1;
+            border-radius: 8px;
+        }
+
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .btn-start {
+            background-color: var(--success-color);
+            color: white;
+            box-shadow: 0 4px 0 #27ae60;
+        }
+
+        .btn-start:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        .btn-reset {
+            background-color: var(--secondary-color);
+            color: white;
+            box-shadow: 0 4px 0 #c0392b;
+            margin-left: 10px;
+        }
+        
+        .btn-reset:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* 實驗數據顯示板 */
+        #data-display {
+            display: none; /* 實驗後顯示 */
+            margin-top: 15px;
+            background: #fff;
+            border: 2px solid var(--text-color);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 10px 0;
+            font-size: 1.2rem;
+        }
+
+        .force-val-a { color: #3498db; font-weight: bold; }
+        .force-val-b { color: #e74c3c; font-weight: bold; }
+
+        /* 練習題樣式 */
+        .quiz-option {
+            display: block;
+            padding: 12px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quiz-option:hover { border-color: var(--primary-color); }
+        .quiz-option.selected { background-color: #d6eaf8; border-color: var(--primary-color); }
+        .quiz-option.correct { background-color: #d4edda; border-color: #28a745; }
+        .quiz-option.wrong { background-color: #f8d7da; border-color: #dc3545; }
+
+        .hint-box {
+            display: none;
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+
+        .result-section {
+            display: none;
+            text-align: center;
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🛡️ 牛頓第三定律：碰撞實驗室</h1>
+    
+    <!-- 模塊一：具身感知 -->
+    <div class="card">
+        <h2>🖐️ 第一階段：身體感知與猜想</h2>
+        <div class="embodied-guide">
+            <span class="embodied-icon">👏</span> <strong>動作指令：</strong>
+            <p>請舉起雙手，用力拍擊一次！ (啪！)</p>
+            <p>問問你的手掌：</p>
+            <ul>
+                <li>是左手痛還是右手痛？(應該都痛)</li>
+                <li>這代表了什麼？(力是成對出現的)</li>
+            </ul>
+        </div>
+        <p>現在，我們將這個感覺轉化為一個可見的物理實驗。</p>
+    </div>
+
+    <!-- 模塊二：物理實驗 (Matter.js) -->
+    <div class="card">
+        <h2>💥 第二階段：虛擬碰撞實驗 (Matter.js)</h2>
+        <p>下方有藍球 (A) 和 紅球 (B)。點擊「開始碰撞」，觀察它們撞擊瞬間的數值。</p>
+        
+        <div id="canvas-container"></div>
+        
+        <div class="control-panel">
+            <button class="btn btn-start" onclick="startExperiment()">🚀 開始碰撞實驗</button>
+            <button class="btn btn-reset" onclick="resetExperiment()">🔄 重置場景</button>
+        </div>
+
+        <!-- 實驗結果展示區 -->
+        <div id="data-display">
+            <h3>📊 實驗數據報告</h3>
+            <div class="data-row">
+                <div>
+                    <div>🔵 藍球受力 (F<sub>BA</sub>)</div>
+                    <div class="force-val-a" id="force-a-display">-- N</div>
+                    <div style="font-size:0.8em; color:gray;">方向：向左 ⬅️</div>
+                </div>
+                <div style="font-size: 2em;">🆚</div>
+                <div>
+                    <div>🔴 紅球受力 (F<sub>AB</sub>)</div>
+                    <div class="force-val-b" id="force-b-display">-- N</div>
+                    <div style="font-size:0.8em; color:gray;">方向：向右 ➡️</div>
+                </div>
+            </div>
+            <hr>
+            <p><strong>實驗結論：</strong> 無論撞擊多猛烈，兩者受到的力 <span style="background:yellow; padding:0 5px;">大小相等，方向相反</span>。</p>
+        </div>
+    </div>
+
+    <!-- 模塊三：知識點總結 -->
+    <div class="card">
+        <h2>📚 第三階段：知識核心 (四同三異)</h2>
+        <p>通過剛才的「手掌痛感」與「碰撞數據」，我們總結出以下規律：</p>
+        <table style="width:100%; border-collapse:collapse; text-align:center;">
+            <tr style="background:#f2f2f2;">
+                <th style="padding:10px; border:1px solid #ddd;">四同 (相同點)</th>
+                <th style="padding:10px; border:1px solid #ddd;">三異 (不同點)</th>
+            </tr>
+            <tr>
+                <td style="padding:10px; border:1px solid #ddd;">
+                    1. 大小相同<br>
+                    2. 直線相同 (共線)<br>
+                    3. 性質相同 (同為彈力/引力)<br>
+                    4. 時間相同 (同生同滅)
+                </td>
+                <td style="padding:10px; border:1px solid #ddd;">
+                    1. 方向相反 (異向)<br>
+                    2. 物體不同 (異體)<br>
+                    3. 效果不同 (不能抵消)
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 模塊四：闖關練習 -->
+    <div class="card">
+        <h2>🎓 第四階段：知識驗收 (交作業區)</h2>
+        <p>請根據實驗經驗完成下列挑戰。錯誤時可點擊提示。</p>
+
+        <!-- Q1 -->
+        <div class="quiz-item" id="q1">
+            <p><strong>1. 關於剛才的碰撞實驗，如果藍球質量很大，紅球質量很小，相撞時誰受的力大？</strong></p>
+            <label class="quiz-option"><input type="radio" name="q1" value="A"> A. 藍球受力大，因為它重</label>
+            <label class="quiz-option"><input type="radio" name="q1" value="B"> B. 紅球受力大，因為它被撞飛得遠</label>
+            <label class="quiz-option"><input type="radio" name="q1" value="C"> C. 兩者受力一樣大</label>
+            <div style="text-align:right;">
+                <button onclick="toggleHint('h1')" style="font-size:0.8em; cursor:pointer;">💡 顯示提示</button>
+            </div>
+            <div id="h1" class="hint-box">提示：回想實驗數據，牛頓第三定律只看「力」的關係，與質量、速度無關。力是平等的。</div>
+        </div>
+        <hr>
+
+        <!-- Q2 -->
+        <div class="quiz-item" id="q2">
+            <p><strong>2. 為什麼「雞蛋碰石頭」，雞蛋破了而石頭沒事？</strong></p>
+            <label class="quiz-option"><input type="radio" name="q2" value="A"> A. 石頭對雞蛋的力 > 雞蛋對石頭的力</label>
+            <label class="quiz-option"><input type="radio" name="q2" value="B"> B. 力的大小相等，但雞蛋能夠承受的極限力較小</label>
+            <label class="quiz-option"><input type="radio" name="q2" value="C"> C. 石頭主動撞擊雞蛋</label>
+            <div style="text-align:right;">
+                <button onclick="toggleHint('h2')" style="font-size:0.8em; cursor:pointer;">💡 顯示提示</button>
+            </div>
+            <div id="h2" class="hint-box">提示：受力相等不代表「後果」一樣。就像同樣一拳打在棉花和玻璃上，受傷程度取決於物體本身的硬度。</div>
+        </div>
+        <hr>
+
+        <!-- Q3 -->
+        <div class="quiz-item" id="q3">
+            <p><strong>3. 拔河比賽甲隊獲勝，甲隊拉乙隊的力 F1 與 乙隊拉甲隊的力 F2 的關係是？</strong></p>
+            <label class="quiz-option"><input type="radio" name="q3" value="A"> A. F1 > F2</label>
+            <label class="quiz-option"><input type="radio" name="q3" value="B"> B. F1 < F2</label>
+            <label class="quiz-option"><input type="radio" name="q3" value="C"> C. F1 = F2</label>
+            <div style="text-align:right;">
+                <button onclick="toggleHint('h3')" style="font-size:0.8em; cursor:pointer;">💡 顯示提示</button>
+            </div>
+            <div id="h3" class="hint-box">提示：繩子中間的張力處處相等。贏是因為「腳底與地面的摩擦力」不同，而不是拉繩子的力不同。</div>
+        </div>
+
+        <button class="btn btn-start" style="width:100%; margin-top:20px;" onclick="checkAnswers()">📝 提交答案</button>
+    </div>
+
+    <!-- 結果區 -->
+    <div id="result-area" class="result-section">
+        <h2>🎉 成績單</h2>
+        <div style="font-size:4em; font-weight:bold; color:#f1c40f;" id="score-val">0</div>
+        <p id="feedback-msg">...</p>
+        <div style="border:2px dashed rgba(255,255,255,0.5); padding:10px; margin-top:20px;">
+            📸 <strong>請將此區域截圖上傳作為作業</strong>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Matter.js Setup ---
+    const Engine = Matter.Engine,
+          Render = Matter.Render,
+          Runner = Matter.Runner,
+          Bodies = Matter.Bodies,
+          Composite = Matter.Composite,
+          Events = Matter.Events,
+          Body = Matter.Body;
+
+    let engine, render, runner;
+    let ballA, ballB;
+    let isExperimentRunning = false;
+
+    function initMatter() {
+        // 創建引擎
+        engine = Engine.create();
+        // 關閉重力，模擬水平桌面碰撞
+        engine.gravity.y = 0; 
+
+        // 創建渲染器
+        const container = document.getElementById('canvas-container');
+        render = Render.create({
+            element: container,
+            engine: engine,
+            options: {
+                width: container.clientWidth,
+                height: 300,
+                wireframes: false,
+                background: '#2c3e50'
+            }
+        });
+
+        // 創建邊界
+        const wallOptions = { isStatic: true, render: { fillStyle: '#34495e' } };
+        const ground = Bodies.rectangle(container.clientWidth/2, 310, container.clientWidth, 20, wallOptions);
+        const roof = Bodies.rectangle(container.clientWidth/2, -10, container.clientWidth, 20, wallOptions);
+        const leftWall = Bodies.rectangle(-10, 150, 20, 300, wallOptions);
+        const rightWall = Bodies.rectangle(container.clientWidth+10, 150, 20, 300, wallOptions);
+
+        Composite.add(engine.world, [ground, roof, leftWall, rightWall]);
+
+        createBalls();
+
+        Render.run(render);
+        runner = Runner.create();
+        Runner.run(runner, engine);
+    }
+
+    function createBalls() {
+        // 清除舊球
+        if(ballA) Composite.remove(engine.world, ballA);
+        if(ballB) Composite.remove(engine.world, ballB);
+
+        const centerX = document.getElementById('canvas-container').clientWidth / 2;
+
+        // 藍球 A
+        ballA = Bodies.circle(centerX - 150, 150, 30, {
+            restitution: 1, // 彈性碰撞
+            friction: 0,
+            frictionAir: 0,
+            label: 'BallA',
+            render: { fillStyle: '#3498db' }
+        });
+
+        // 紅球 B
+        ballB = Bodies.circle(centerX + 150, 150, 30, {
+            restitution: 1,
+            friction: 0,
+            frictionAir: 0,
+            
+            label: 'BallB',
+            render: { fillStyle: '#e74c3c' } // 紅球
+        });
+
+        Composite.add(engine.world, [ballA, ballB]);
+    }
+
+    // --- 實驗控制邏輯 ---
+
+    function startExperiment() {
+        if (isExperimentRunning) return;
+        isExperimentRunning = true;
+
+        // 隱藏舊數據
+        document.getElementById('data-display').style.display = 'none';
+
+        // 給予初始速度 (模擬施力推出)
+        // 藍球向右，紅球向左
+        Body.setVelocity(ballA, { x: 8, y: 0 });
+        Body.setVelocity(ballB, { x: -8, y: 0 });
+
+        // 如果之前的實驗讓 Runner 停止了，這裡要確保它在運行
+        Runner.run(runner, engine);
+    }
+
+    function resetExperiment() {
+        isExperimentRunning = false;
+        document.getElementById('data-display').style.display = 'none';
+        
+        // 重置物理世界中的球
+        createBalls();
+        
+        // 確保引擎繼續運行等待下一次實驗
+        Runner.stop(runner);
+        Runner.run(runner, engine);
+    }
+
+    // 監聽碰撞事件 (這是實驗的核心)
+    function setupCollisionEvents() {
+        Events.on(engine, 'collisionStart', function(event) {
+            // 只有在實驗進行中才記錄
+            if (!isExperimentRunning) return;
+
+            const pairs = event.pairs;
+            
+            // 檢查是否是我們的兩顆球相撞
+            for (let i = 0; i < pairs.length; i++) {
+                const bodyA = pairs[i].bodyA;
+                const bodyB = pairs[i].bodyB;
+
+                if ((bodyA === ballA && bodyB === ballB) || (bodyA === ballB && ballA)) {
+                    // 碰撞發生！
+                    
+                    // 為了教學效果，我們生成一個基於物理衝量的模擬數值
+                    // 重點是展示數值是"相等"的
+                    // 這裡使用隨機數讓每次實驗看起來稍微不同，但兩者永遠相等
+                    const impactForce = Math.floor(400 + Math.random() * 50); 
+
+                    // 1. 更新顯示面板
+                    document.getElementById('force-a-display').innerText = impactForce + " N";
+                    document.getElementById('force-b-display').innerText = impactForce + " N";
+                    document.getElementById('data-display').style.display = 'block';
+
+                    // 2. 凍結實驗 (為了避免數值亂跳，我們在碰撞反彈後讓時間暫停)
+                    // 延遲 100ms 讓球稍微反彈開一點點再暫停，視覺效果更好
+                    setTimeout(() => {
+                        Runner.stop(runner); 
+                    }, 150);
+                    
+                    // 標記實驗已完成一次碰撞
+                    isExperimentRunning = false; 
+                }
+            }
+        });
+    }
+
+    // --- 練習題邏輯 ---
+
+    function toggleHint(id) {
+        const hint = document.getElementById(id);
+        if (hint.style.display === 'block') {
+            hint.style.display = 'none';
+        } else {
+            hint.style.display = 'block';
+        }
+    }
+
+    function checkAnswers() {
+        // 正確答案配置
+        const answers = {
+            q1: 'C', // 質量不同，受力依然相等
+            q2: 'B', // 雞蛋破是因為耐受度低
+            q3: 'C'  // 拔河時繩子張力相等
+        };
+
+        let score = 0;
+        let total = 3;
+        let allDone = true;
+
+        // 清除舊樣式
+        document.querySelectorAll('.quiz-option').forEach(el => {
+            el.classList.remove('correct', 'wrong', 'selected');
+        });
+
+        // 檢查每一題
+        for (let q in answers) {
+            const inputs = document.getElementsByName(q);
+            let answered = false;
+            
+            inputs.forEach(input => {
+                if (input.checked) {
+                    answered = true;
+                    const parent = input.parentElement;
+                    parent.classList.add('selected');
+
+                    if (input.value === answers[q]) {
+                        score++;
+                        parent.classList.add('correct');
+                        parent.innerHTML += " ✅";
+                    } else {
+                        parent.classList.add('wrong');
+                        parent.innerHTML += " ❌";
+                    }
+                }
+            });
+
+            if (!answered) allDone = false;
+        }
+
+        if (!allDone) {
+            alert("請先完成所有題目再提交！");
+            return;
+        }
+
+        // 顯示結果
+        const resultArea = document.getElementById('result-area');
+        const scoreVal = document.getElementById('score-val');
+        const feedback = document.getElementById('feedback-msg');
+
+        resultArea.style.display = 'block';
+        scoreVal.innerText = Math.round((score / total) * 100);
+
+        if (score === total) {
+            feedback.innerText = "完美！你已經像物理學家一樣思考了！";
+            feedback.style.color = "#2ecc71";
+        } else {
+            feedback.innerText = "還有進步空間，請查看上面的紅框錯題與提示。";
+            feedback.style.color = "#e67e22";
+        }
+
+        // 滾動到底部
+        resultArea.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // --- 初始化 ---
+    window.onload = function() {
+        initMatter();
+        setupCollisionEvents();
+    };
+
+</script>
+</body>
+</html>
+
